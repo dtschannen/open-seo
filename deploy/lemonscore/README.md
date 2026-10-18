@@ -51,6 +51,23 @@ username, password and the one-time password.
 2. The push to `main` runs **LemonScore image**; wait for it to finish.
 3. On the server: `cd ~/open-seo && docker compose pull open-seo && docker compose up -d open-seo`
 
+## Google Search Console and Analytics
+
+Google Cloud project `openseo-512007` ("OpenSEO", organisation dariotschannen.ch,
+owner dario@lemon-score.ch): Search Console API, Analytics Admin API and Analytics
+Data API on; Google Auth Platform audience External; Web OAuth client
+"OpenSEO seo.lemon-score.ch" with the redirects
+`https://seo.lemon-score.ch/api/gsc/oauth/callback` and `/api/ga4/oauth/callback`.
+Client ID, secret and the downloaded JSON are in 1Password ("OpenSEO Google OAuth
+client"); `.env` has `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and
+`BETTER_AUTH_SECRET` (generated on the server, encrypts the stored Google tokens;
+changing it disconnects every Google account).
+
+The app must be published ("In production"): in Testing only listed test users
+can connect and their connections expire after 7 days. It is not verified by
+Google, so each account sees "Google hasn't verified this app" once (Advanced →
+continue); at most 100 accounts.
+
 ## MCP
 
 MCP clients cannot do the Authelia login, so `https://seo.lemon-score.ch/mcp` takes a
