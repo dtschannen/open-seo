@@ -51,6 +51,35 @@ username, password and the one-time password.
 2. The push to `main` runs **LemonScore image**; wait for it to finish.
 3. On the server: `cd ~/open-seo && docker compose pull open-seo && docker compose up -d open-seo`
 
+## MCP
+
+MCP clients cannot do the Authelia login, so `https://seo.lemon-score.ch/mcp` takes a
+bearer token instead, checked by Caddy (`~/lemonscore/sites/openseo-mcp.secret`, root
+0600, from `openseo-mcp.secret.example`). Only `/mcp` opens with it; everything else
+still needs password + TOTP. No file, or a missing or wrong token: 401.
+
+The token is in 1Password, item "OpenSEO MCP token (seo.lemon-score.ch)". It is a single
+factor with full admin rights (it can start paid DataForSEO jobs), so keep it in as few
+client configs as possible. Claude Code:
+
+```bash
+claude mcp add --transport http --scope user openseo https://seo.lemon-score.ch/mcp \
+  --header "Authorization: Bearer $(op read 'op://Lemon Juice/ejdentqm6ziqax6j7bogmesjfe/credential')"
+```
+
+Rotate: new 64-character hex token in the 1Password item, the same in the secret file,
+reload Caddy, update the clients.
+
+## Caddy
+
+`~/lemonscore/docker-compose.yml` mounts `~/lemonscore/sites` into Caddy and puts
+Caddy on the `edge` network; the Caddyfile ends with `import /etc/caddy/sites/*.caddy`
+(LemonScore-Sales repo, so a Lead Engine deploy keeps it). After changing
+`openseo.caddy` on the server:
+`cd ~/lemonscore && docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`
+
+DNS: `seo` A record to the server IP in Cloudflare, DNS only (grey cloud), like hub and club.
+
 ## Common tasks
 
 - Logs: `docker compose logs -f open-seo authelia`

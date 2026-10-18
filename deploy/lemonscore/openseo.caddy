@@ -14,6 +14,16 @@ seo.lemon-score.ch {
 		X-Robots-Tag "noindex, nofollow"
 	}
 
+	# MCP clients cannot do the Authelia login, so /mcp takes a bearer token instead.
+	# The token and its handle live in openseo-mcp.secret next to this file (server
+	# only, never in git; see README). Without that file, or with a wrong or missing
+	# token, /mcp answers 401: never OpenSEO, never the login page.
+	@mcp path /mcp /mcp/*
+	import /etc/caddy/sites/openseo-mcp*.secret
+	handle @mcp {
+		respond 401
+	}
+
 	@authelia path /authelia /authelia/*
 	handle @authelia {
 		reverse_proxy authelia:9091
