@@ -1,0 +1,34 @@
+# Imported by the Lead Engine's Caddyfile (import /etc/caddy/sites/*.caddy).
+# Copy to ~/lemonscore/sites/openseo.caddy on the server.
+#
+# OpenSEO has no login of its own here, so every request outside the Authelia
+# portal goes through forward_auth first: no session with password + TOTP, no
+# OpenSEO.
+seo.lemon-score.ch {
+	encode zstd gzip
+	import security_headers
+
+	header {
+		X-Frame-Options DENY
+		Content-Security-Policy "frame-ancestors 'none'"
+		X-Robots-Tag "noindex, nofollow"
+	}
+
+	@authelia path /authelia /authelia/*
+	handle @authelia {
+		reverse_proxy authelia:9091
+	}
+
+	handle {
+		forward_auth authelia:9091 {
+			uri /authelia/api/authz/forward-auth
+			copy_headers Remote-User Remote-Groups Remote-Email Remote-Name
+		}
+		reverse_proxy open-seo:3001
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}

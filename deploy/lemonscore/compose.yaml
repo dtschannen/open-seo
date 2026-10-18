@@ -1,0 +1,81 @@
+# OpenSEO on the LemonScore server, behind Authelia (password + TOTP).
+#
+# Lives in ~/open-seo on the server, next to ~/lemonscore. Neither service
+# publishes a port: the Lead Engine's Caddy joins the `edge` network (created by
+# ~/lemonscore/docker-compose.yml) and serves seo.lemon-score.ch from
+# ~/lemonscore/sites/openseo.caddy. OpenSEO itself has no login in Docker mode
+# (AUTH_MODE=local_noauth), so it must only ever be reachable through Caddy's
+# forward_auth. See deploy/lemonscore/README.md.
+name: openseo
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "3"
+
+services:
+  open-seo:
+    image: ghcr.io/dtschannen/open-seo:${OPEN_SEO_TAG:-latest}
+    restart: unless-stopped
+    # Explicit list instead of env_file: any extra VITE_* value would change the
+    # build fingerprint and trigger the 4 GB boot-time build the image avoids.
+    environment:
+      CLOUDFLARE_INCLUDE_PROCESS_ENV: "true"
+      PORT: "3001"
+      ALLOWED_HOST: ${OPENSEO_DOMAIN:?Set OPENSEO_DOMAIN in .env}
+      AUTH_MODE: local_noauth
+      VITE_SHOW_DEVTOOLS: "false"
+      OPENSEO_TELEMETRY_DISABLED: "1"
+      DATAFORSEO_API_KEY: ${DATAFORSEO_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-}
+    volumes:
+      - open_seo_data:/app/.wrangler
+    networks:
+      - edge
+    # The Lead Engine comes first on this host.
+    mem_limit: 1200m
+    memswap_limit: 1600m
+    cpus: 1.0
+    pids_limit: 512
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+  authelia:
+    image: authelia/authelia:4.39.28
+    restart: unless-stopped
+    user: "8000:8000"
+    environment:
+      X_AUTHELIA_CONFIG: /config/configuration.yml
+      AUTHELIA_SESSION_SECRET_FILE: /secrets/session_secret
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /secrets/storage_encryption_key
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /secrets/jwt_secret
+    volumes:
+      - ./authelia/configuration.yml:/config/configuration.yml:ro
+      - ./authelia/users.yml:/config/users.yml:ro
+      - ./authelia/secrets:/secrets:ro
+      - ./authelia/data:/data
+    networks:
+      - edge
+    mem_limit: 256m
+    cpus: 0.5
+    pids_limit: 128
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging: *logging
+
+volumes:
+  open_seo_data:
+
+networks:
+  edge:
+    external: true
